@@ -100,7 +100,9 @@ public class BoardRenderer implements GameRenderer {
             int[] pending = board.getPendingClearRows();
             if (pending != null && pending.length > 0) {
                 long now = System.nanoTime();
-                boolean visible = ((now / FLASH_PERIOD_NS) % 2) == 0;
+                long flashNs = board.getPendingClearFlashPeriodNs();
+                long period = flashNs > 0 ? flashNs : FLASH_PERIOD_NS;
+                boolean visible = ((now / period) % 2) == 0;
                 if (visible) {
                     Color overlay = board.getPendingClearColorIndex() == 0
                             ? Color.web("#FFD700", 0.55)

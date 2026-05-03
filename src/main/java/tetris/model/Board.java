@@ -13,6 +13,8 @@ public class Board {
     // Pending cleared rows (used for animation before actual removal)
     private int[] pendingClearRows;
     private int pendingClearColorIndex; // 0 = yellow, 1 = red
+    private long pendingClearFlashPeriodNs;
+    private static final long DEFAULT_PENDING_CLEAR_FLASH_NS = 150_000_000L;
 
     public Board() {
         this.grid = new int[ROWS][COLUMNS];
@@ -166,12 +168,18 @@ public class Board {
     }
 
     public void setPendingClearRows(int[] rows, int colorIndex) {
+        setPendingClearRows(rows, colorIndex, DEFAULT_PENDING_CLEAR_FLASH_NS);
+    }
+
+    public void setPendingClearRows(int[] rows, int colorIndex, long flashPeriodNs) {
         if (rows == null || rows.length == 0) {
             this.pendingClearRows = null;
+            this.pendingClearFlashPeriodNs = 0L;
             return;
         }
         this.pendingClearRows = rows.clone();
         this.pendingClearColorIndex = colorIndex;
+        this.pendingClearFlashPeriodNs = flashPeriodNs > 0 ? flashPeriodNs : DEFAULT_PENDING_CLEAR_FLASH_NS;
     }
 
     public int[] getPendingClearRows() {
@@ -182,12 +190,17 @@ public class Board {
         return pendingClearColorIndex;
     }
 
+    public long getPendingClearFlashPeriodNs() {
+        return pendingClearFlashPeriodNs <= 0 ? DEFAULT_PENDING_CLEAR_FLASH_NS : pendingClearFlashPeriodNs;
+    }
+
     public boolean hasPendingClear() {
         return pendingClearRows != null && pendingClearRows.length > 0;
     }
 
     public void clearPendingClearRows() {
         this.pendingClearRows = null;
+        this.pendingClearFlashPeriodNs = 0L;
     }
 
     private boolean isLineFull(int row) {

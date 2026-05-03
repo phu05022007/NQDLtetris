@@ -51,6 +51,10 @@ public class GameEngine {
     private int lineClearColorIndex = 0; // 0=yellow,1=red
     private static final long LINE_CLEAR_ANIMATION_NS = 600_000_000L; // 600ms
     private static final long LINE_CLEAR_FLASH_PERIOD_NS = 150_000_000L; // 150ms
+    private static final long FAST_LINE_CLEAR_ANIMATION_NS = 300_000_000L; // 300ms for hard-drop
+    private static final long FAST_LINE_CLEAR_FLASH_PERIOD_NS = 75_000_000L; // 75ms flash for hard-drop
+    private long currentLineClearAnimationNs = LINE_CLEAR_ANIMATION_NS;
+    private long currentLineClearFlashPeriodNs = LINE_CLEAR_FLASH_PERIOD_NS;
     private final Random random = new Random();
 
     private TetrominoFactory.TetrominoType nextTetrominoType;
@@ -234,7 +238,7 @@ public class GameEngine {
                 }
 
                 // Finalize line clear after animation duration
-                if (lineClearAnimating && lineClearElapsedNs >= LINE_CLEAR_ANIMATION_NS) {
+                if (lineClearAnimating && lineClearElapsedNs >= currentLineClearAnimationNs) {
                     finalizeLineClearAnimation();
                 }
             }
@@ -300,9 +304,15 @@ public class GameEngine {
         int ghostY = getGhostY();
         currentTetromino.setPosition(currentTetromino.getX(), ghostY);
         board.lock(currentTetromino);
-        int cleared = board.clearFullLines();
-        totalClearedLines += cleared;
-        score += calculateScore(cleared);
+        int[] fullLines = board.getFullLines();
+        if (fullLines != null && fullLines.length > 0) {
+            // Faster, snappier animation when lines are cleared by hard drop
+            startLineClearAnimation(fullLines, FAST_LINE_CLEAR_ANIMATION_NS, FAST_LINE_CLEAR_FLASH_PERIOD_NS);
+            // Current tetromino is locked on board; clear reference and postpone spawn until animation completes.
+            currentTetromino = null;
+            return false;
+        }
+
         return spawnRandomTetromino(true);
     }
 
@@ -471,6 +481,10 @@ public class GameEngine {
     }
 
     private void startLineClearAnimation(int[] rows) {
+        startLineClearAnimation(rows, LINE_CLEAR_ANIMATION_NS, LINE_CLEAR_FLASH_PERIOD_NS);
+    }
+
+    private void startLineClearAnimation(int[] rows, long animationNs, long flashPeriodNs) {
         if (rows == null || rows.length == 0) {
             return;
         }
@@ -478,7 +492,9 @@ public class GameEngine {
         this.lineClearColorIndex = random.nextInt(2); // 0 or 1
         this.lineClearElapsedNs = 0L;
         this.lineClearAnimating = true;
-        board.setPendingClearRows(rows, lineClearColorIndex);
+        this.currentLineClearAnimationNs = animationNs > 0 ? animationNs : LINE_CLEAR_ANIMATION_NS;
+        this.currentLineClearFlashPeriodNs = flashPeriodNs > 0 ? flashPeriodNs : LINE_CLEAR_FLASH_PERIOD_NS;
+        board.setPendingClearRows(rows, lineClearColorIndex, currentLineClearFlashPeriodNs);
     }
 
     private void finalizeLineClearAnimation() {
