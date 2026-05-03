@@ -1,0 +1,64 @@
+/* Application stylesheet for Tetris UI */
+
+/* Root background and canvas area */
+.root-background {
+    -fx-background-color: linear-gradient(#000000, #2b0b44);
+}
+
+.canvas-stack {
+    -fx-background-color: linear-gradient(#000000, #2b0b44);
+    -fx-padding: 6;
+}
+
+/* HUD labels (score, lines) */
+.hud-label {
+    -fx-background-color: rgba(0,0,0,0.45);
+    -fx-padding: 4 8;
+    -fx-background-radius: 6;
+    -fx-border-color: #4B0082;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-text-fill: white;
+}
+
+/* Language selection overlay */
+.language-overlay {
+    -fx-background-color: linear-gradient(from 0% 0% to 0% 100%, rgba(0,0,0,0.95), rgba(43,11,68,0.85));
+    -fx-background-radius: 8;
+}
+
+.language-prompt {
+    -fx-background-color: rgba(0,0,0,0.45);
+    -fx-padding: 6 10;
+    -fx-background-radius: 8;
+    -fx-border-color: #4B0082;
+    -fx-border-width: 1;
+    -fx-border-radius: 8;
+    -fx-text-fill: white;
+}
+
+/* Help overlay and entries */
+.help-overlay {
+    -fx-background-color: linear-gradient(from 0% 0% to 0% 100%, rgba(0,0,0,0.85), rgba(43,11,68,0.65));
+    -fx-background-radius: 8;
+}
+
+.help-title {
+    -fx-background-color: rgba(0,0,0,0.45);
+    -fx-padding: 6 8;
+    -fx-background-radius: 6;
+    -fx-border-color: #4B0082;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-text-fill: white;
+}
+
+.help-line {
+    -fx-background-color: rgba(0,0,0,0.35);
+    -fx-padding: 4 6;
+    -fx-background-radius: 6;
+    -fx-border-color: #4B0082;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-text-fill: white;
+}

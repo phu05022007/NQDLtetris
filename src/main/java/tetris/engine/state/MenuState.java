@@ -31,8 +31,8 @@ public class MenuState implements GameState {
     @Override
     public void render(GameEngine engine, GameRenderer renderer) {
         renderer.clear();
-        renderer.drawText("TETRIS", 4, 5);
-        renderer.drawText("Press START to play", 2, 7);
+        renderer.drawText(engine.getText("menu.title"), 4, 5);
+        renderer.drawText(engine.getText("menu.start"), 2, 7);
         renderer.present();
     }
 

@@ -8,6 +8,7 @@ public enum GameAction {
     LEFT,
     RIGHT,
     DOWN,
+    HARD_DROP,
     ROTATE,
     HOLD,
     PAUSE,

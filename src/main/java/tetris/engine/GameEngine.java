@@ -11,6 +11,7 @@ import tetris.model.Tetromino;
 import tetris.model.TetrominoFactory;
 
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -42,6 +43,82 @@ public class GameEngine {
     private long updateAccumulatorNs;
     private long renderAccumulatorNs;
 
+    // Line clear animation state
+    private boolean lineClearAnimating = false;
+    private int[] linesToClear = null;
+    private long lineClearElapsedNs = 0L;
+    private int lineClearColorIndex = 0; // 0=yellow,1=red
+    private static final long LINE_CLEAR_ANIMATION_NS = 600_000_000L; // 600ms
+    private static final long LINE_CLEAR_FLASH_PERIOD_NS = 150_000_000L; // 150ms
+    private final Random random = new Random();
+
+    // Language for UI/localized text. Null until set by UI; default to EN when accessed.
+    public enum Language {
+        EN,
+        VI
+    }
+
+    private Language language = null;
+
+    public void setLanguage(Language language) {
+        this.language = language == null ? Language.EN : language;
+    }
+
+    public Language getLanguage() {
+        return this.language == null ? Language.EN : this.language;
+    }
+
+    /**
+     * Minimal localized string lookup used by state renderers and UI.
+     */
+    public String getText(String key) {
+        Language lang = getLanguage();
+        switch (lang) {
+            case VI:
+                switch (key) {
+                    case "menu.title": return "TETRIS";
+                    case "menu.start": return "Nhấn ENTER để bắt đầu";
+                    case "paused.title": return "Tạm dừng";
+                    case "paused.instructions": return "Nhấn R để tiếp tục, Esc để về menu";
+                    case "gameover.title": return "KẾT THÚC";
+                    case "gameover.instructions": return "Nhấn R để chơi lại, Esc để về menu";
+                    case "label.score": return "Điểm: ";
+                    case "label.lines": return "Hàng: ";
+                    case "help.title": return "Hướng dẫn chơi";
+                    case "help.move": return "Di chuyển: ← →";
+                    case "help.rotate": return "Xoay: ↑";
+                    case "help.softdrop": return "Rơi mềm: ↓";
+                    case "help.harddrop": return "Rơi nhanh (hard drop): Space";
+                    case "help.hold": return "Giữ khối: C";
+                    case "help.controls": return "Bắt đầu: Enter | Tạm dừng: P | Tiếp tục: R";
+                    case "help.menu": return "Quay về menu: Esc | Hiện/ẩn hướng dẫn: H";
+                    case "help.goal": return "Mục tiêu: Hoàn thành hàng để ghi điểm: 1=100,2=300,3=500,4=800";
+                    default: return key;
+                }
+            default:
+                switch (key) {
+                    case "menu.title": return "TETRIS";
+                    case "menu.start": return "Press ENTER to start";
+                    case "paused.title": return "PAUSED";
+                    case "paused.instructions": return "Press R to resume, Esc to return to menu";
+                    case "gameover.title": return "GAME OVER";
+                    case "gameover.instructions": return "Press R to restart, Esc to return to menu";
+                    case "label.score": return "Score: ";
+                    case "label.lines": return "Lines: ";
+                    case "help.title": return "How to play";
+                    case "help.move": return "Move: ← →";
+                    case "help.rotate": return "Rotate: ↑";
+                    case "help.softdrop": return "Soft drop: ↓";
+                    case "help.harddrop": return "Hard drop: Space";
+                    case "help.hold": return "Hold: C";
+                    case "help.controls": return "Start: Enter | Pause: P | Resume: R";
+                    case "help.menu": return "Back to menu: Esc | Toggle help: H";
+                    case "help.goal": return "Goal: clear lines to score: 1=100,2=300,3=500,4=800";
+                    default: return key;
+                }
+        }
+    }
+
     public GameEngine() {
         this.board = new Board();
         this.tetrominoFactory = new TetrominoFactory();
@@ -65,10 +142,20 @@ public class GameEngine {
     }
 
     public void handleInput(GameAction action) {
+        if (lineClearAnimating) {
+            // Ignore input while clearing animation plays
+            return;
+        }
+
         currentState.handleInput(this, action);
     }
 
     public void update() {
+        if (lineClearAnimating) {
+            // Pause game updates while animation plays
+            return;
+        }
+
         currentState.update(this);
     }
 
@@ -97,6 +184,11 @@ public class GameEngine {
                 long deltaTimeNs = now - previousNow;
                 previousNow = now;
 
+                // Advance line-clear animation timer if active
+                if (lineClearAnimating) {
+                    lineClearElapsedNs += deltaTimeNs;
+                }
+
                 updateAccumulatorNs += deltaTimeNs;
                 renderAccumulatorNs += deltaTimeNs;
 
@@ -108,6 +200,11 @@ public class GameEngine {
                 while (renderAccumulatorNs >= TARGET_FRAME_INTERVAL_NS) {
                     GameEngine.this.render(GameEngine.this.renderer);
                     renderAccumulatorNs -= TARGET_FRAME_INTERVAL_NS;
+                }
+
+                // Finalize line clear after animation duration
+                if (lineClearAnimating && lineClearElapsedNs >= LINE_CLEAR_ANIMATION_NS) {
+                    finalizeLineClearAnimation();
                 }
             }
         };
@@ -138,6 +235,17 @@ public class GameEngine {
         int nextY = currentTetromino.getY() + 1;
         if (board.checkCollision(currentTetromino.getX(), nextY, currentTetromino.getShape())) {
             board.lock(currentTetromino);
+
+            // Detect full lines first and play animation if any.
+            int[] fullLines = board.getFullLines();
+            if (fullLines != null && fullLines.length > 0) {
+                // Start line clear animation and postpone removal/spawn until it's done.
+                startLineClearAnimation(fullLines);
+                // Clear current tetromino reference since it's locked to the board now.
+                currentTetromino = null;
+                return false;
+            }
+
             int cleared = board.clearFullLines();
             totalClearedLines += cleared;
             score += calculateScore(cleared);
@@ -146,6 +254,25 @@ public class GameEngine {
 
         currentTetromino.setPosition(currentTetromino.getX(), nextY);
         return false;
+    }
+
+    /**
+     * Perform a hard drop: move current piece to the lowest valid Y, lock it,
+     * clear lines, update score, and spawn the next piece. Returns true if
+     * spawning the next piece collides (game over condition).
+     */
+    public boolean hardDrop() {
+        if (currentTetromino == null) {
+            return spawnRandomTetromino(true);
+        }
+
+        int ghostY = getGhostY();
+        currentTetromino.setPosition(currentTetromino.getX(), ghostY);
+        board.lock(currentTetromino);
+        int cleared = board.clearFullLines();
+        totalClearedLines += cleared;
+        score += calculateScore(cleared);
+        return spawnRandomTetromino(true);
     }
 
     public void moveCurrent(int dx, int dy) {
@@ -305,6 +432,45 @@ public class GameEngine {
                 return 800;
             default:
                 return 0;
+        }
+    }
+
+    private void startLineClearAnimation(int[] rows) {
+        if (rows == null || rows.length == 0) {
+            return;
+        }
+        this.linesToClear = rows.clone();
+        this.lineClearColorIndex = random.nextInt(2); // 0 or 1
+        this.lineClearElapsedNs = 0L;
+        this.lineClearAnimating = true;
+        board.setPendingClearRows(rows, lineClearColorIndex);
+    }
+
+    private void finalizeLineClearAnimation() {
+        if (linesToClear == null || linesToClear.length == 0) {
+            lineClearAnimating = false;
+            lineClearElapsedNs = 0L;
+            return;
+        }
+
+        int cleared = linesToClear.length;
+
+        // Remove the rows from the board and clear pending markers
+        board.removeLines(linesToClear);
+        board.clearPendingClearRows();
+
+        // Reset animation state
+        lineClearAnimating = false;
+        lineClearElapsedNs = 0L;
+
+        // Update score and counters
+        totalClearedLines += cleared;
+        score += calculateScore(cleared);
+
+        // Spawn next piece and handle game over
+        boolean gameOver = spawnRandomTetromino(true);
+        if (gameOver) {
+            changeState(gameOverState);
         }
     }
 }

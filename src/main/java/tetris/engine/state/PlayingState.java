@@ -30,6 +30,12 @@ public class PlayingState implements GameState {
             case ROTATE:
                 engine.rotateCurrentClockwise();
                 break;
+            case HARD_DROP:
+                boolean gameOver = engine.hardDrop();
+                if (gameOver) {
+                    engine.changeState(engine.getGameOverState());
+                }
+                break;
             case HOLD:
                 if (engine.holdCurrentPiece()) {
                     engine.changeState(engine.getGameOverState());
@@ -59,8 +65,8 @@ public class PlayingState implements GameState {
     public void render(GameEngine engine, GameRenderer renderer) {
         renderer.clear();
         renderer.drawBoard(engine.getBoard(), engine.getCurrentTetromino(), engine.getGhostY());
-        renderer.drawText("Score: " + engine.getScore(), 0, 21);
-        renderer.drawText("Lines: " + engine.getTotalClearedLines(), 0, 22);
+        renderer.drawText(engine.getText("label.score") + engine.getScore(), 0, 21);
+        renderer.drawText(engine.getText("label.lines") + engine.getTotalClearedLines(), 0, 22);
         renderer.present();
     }
 

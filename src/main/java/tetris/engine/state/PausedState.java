@@ -33,8 +33,8 @@ public class PausedState implements GameState {
     public void render(GameEngine engine, GameRenderer renderer) {
         renderer.clear();
         renderer.drawBoard(engine.getBoard(), engine.getCurrentTetromino(), engine.getGhostY());
-        renderer.drawText("PAUSED", 4, 10);
-        renderer.drawText("RESUME / BACK_TO_MENU", 1, 12);
+        renderer.drawText(engine.getText("paused.title"), 4, 10);
+        renderer.drawText(engine.getText("paused.instructions"), 1, 12);
         renderer.present();
     }
 

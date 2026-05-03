@@ -10,6 +10,9 @@ public class Board {
     public static final int COLUMNS = 10;
 
     private final int[][] grid;
+    // Pending cleared rows (used for animation before actual removal)
+    private int[] pendingClearRows;
+    private int pendingClearColorIndex; // 0 = yellow, 1 = red
 
     public Board() {
         this.grid = new int[ROWS][COLUMNS];
@@ -125,6 +128,66 @@ public class Board {
         }
 
         return linesCleared;
+    }
+
+    /**
+     * Return indices of all full lines (may be empty). Order is ascending.
+     */
+    public int[] getFullLines() {
+        java.util.List<Integer> found = new java.util.ArrayList<>();
+        for (int row = 0; row < ROWS; row++) {
+            if (isLineFull(row)) {
+                found.add(row);
+            }
+        }
+        int[] out = new int[found.size()];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = found.get(i);
+        }
+        return out;
+    }
+
+    /**
+     * Remove the specified rows from the board. Rows array may be in any order.
+     * Removal is performed from bottom to top so indices remain valid.
+     */
+    public void removeLines(int[] rows) {
+        if (rows == null || rows.length == 0) {
+            return;
+        }
+        java.util.Arrays.sort(rows);
+        for (int i = rows.length - 1; i >= 0; i--) {
+            int row = rows[i];
+            if (row < 0 || row >= ROWS) {
+                continue;
+            }
+            removeLine(row);
+        }
+    }
+
+    public void setPendingClearRows(int[] rows, int colorIndex) {
+        if (rows == null || rows.length == 0) {
+            this.pendingClearRows = null;
+            return;
+        }
+        this.pendingClearRows = rows.clone();
+        this.pendingClearColorIndex = colorIndex;
+    }
+
+    public int[] getPendingClearRows() {
+        return pendingClearRows == null ? new int[0] : pendingClearRows.clone();
+    }
+
+    public int getPendingClearColorIndex() {
+        return pendingClearColorIndex;
+    }
+
+    public boolean hasPendingClear() {
+        return pendingClearRows != null && pendingClearRows.length > 0;
+    }
+
+    public void clearPendingClearRows() {
+        this.pendingClearRows = null;
     }
 
     private boolean isLineFull(int row) {
