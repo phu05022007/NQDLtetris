@@ -36,6 +36,7 @@ public class GameEngine {
     private int score;
     private int totalClearedLines;
     private final List<HoldPieceListener> holdPieceListeners;
+    private final List<NextPieceListener> nextPieceListeners;
 
     private AnimationTimer gameLoopTimer;
     private GameRenderer renderer;
@@ -51,6 +52,8 @@ public class GameEngine {
     private static final long LINE_CLEAR_ANIMATION_NS = 600_000_000L; // 600ms
     private static final long LINE_CLEAR_FLASH_PERIOD_NS = 150_000_000L; // 150ms
     private final Random random = new Random();
+
+    private TetrominoFactory.TetrominoType nextTetrominoType;
 
     // Language for UI/localized text. Null until set by UI; default to EN when accessed.
     public enum Language {
@@ -88,7 +91,7 @@ public class GameEngine {
                     case "help.move": return "Di chuyển: ← →";
                     case "help.rotate": return "Xoay: ↑";
                     case "help.softdrop": return "Rơi mềm: ↓";
-                    case "help.harddrop": return "Rơi nhanh (hard drop): Space";
+                    case "help.harddrop": return "Rơi nhanh: Space";
                     case "help.hold": return "Giữ khối: C";
                     case "help.controls": return "Bắt đầu: Enter | Tạm dừng: P | Tiếp tục: R";
                     case "help.menu": return "Quay về menu: Esc | Hiện/ẩn hướng dẫn: H";
@@ -128,11 +131,35 @@ public class GameEngine {
         this.pausedState = new PausedState();
         this.gameOverState = new GameOverState();
         this.holdPieceListeners = new CopyOnWriteArrayList<HoldPieceListener>();
+        this.nextPieceListeners = new CopyOnWriteArrayList<NextPieceListener>();
+        // initialize next piece
+        this.nextTetrominoType = tetrominoFactory.randomType();
         this.heldTetrominoType = null;
         this.holdUsedThisTurn = false;
 
         this.currentState = menuState;
         this.currentState.enter(this);
+    }
+
+    public TetrominoFactory.TetrominoType getNextTetrominoType() {
+        return this.nextTetrominoType;
+    }
+
+    public void addNextPieceListener(NextPieceListener listener) {
+        if (listener != null) {
+            nextPieceListeners.add(listener);
+            listener.onNextPieceChanged(nextTetrominoType);
+        }
+    }
+
+    public void removeNextPieceListener(NextPieceListener listener) {
+        nextPieceListeners.remove(listener);
+    }
+
+    private void notifyNextPieceChanged(TetrominoFactory.TetrominoType nextType) {
+        for (NextPieceListener l : nextPieceListeners) {
+            l.onNextPieceChanged(nextType);
+        }
     }
 
     public void changeState(GameState nextState) {
@@ -398,7 +425,11 @@ public class GameEngine {
     }
 
     private boolean spawnRandomTetromino(boolean resetHoldForNewTurn) {
-        currentTetromino = tetrominoFactory.createRandom();
+        TetrominoFactory.TetrominoType toSpawn = (nextTetrominoType != null) ? nextTetrominoType : tetrominoFactory.randomType();
+        currentTetromino = tetrominoFactory.create(toSpawn);
+        // prepare next piece and notify listeners
+        nextTetrominoType = tetrominoFactory.randomType();
+        notifyNextPieceChanged(nextTetrominoType);
         if (resetHoldForNewTurn) {
             holdUsedThisTurn = false;
         }

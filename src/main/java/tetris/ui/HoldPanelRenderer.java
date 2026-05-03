@@ -9,48 +9,93 @@ import tetris.model.TetrominoFactory;
 /**
  * Side panel renderer that observes hold piece changes.
  */
-public class HoldPanelRenderer implements HoldPieceListener {
+public class HoldPanelRenderer implements HoldPieceListener, tetris.engine.NextPieceListener {
     private final Canvas canvas;
     private final GraphicsContext gc;
     private final double cellSize;
+    private TetrominoFactory.TetrominoType holdType;
+    private TetrominoFactory.TetrominoType nextType;
 
     public HoldPanelRenderer(Canvas canvas, double cellSize) {
         this.canvas = canvas;
         this.gc = canvas.getGraphicsContext2D();
         this.cellSize = cellSize;
-        draw(null);
+        this.holdType = null;
+        this.nextType = null;
+        draw();
     }
 
     @Override
     public void onHoldPieceChanged(TetrominoFactory.TetrominoType holdType) {
-        draw(holdType);
+        this.holdType = holdType;
+        draw();
     }
 
-    private void draw(TetrominoFactory.TetrominoType holdType) {
+    @Override
+    public void onNextPieceChanged(TetrominoFactory.TetrominoType nextType) {
+        this.nextType = nextType;
+        draw();
+    }
+
+    private void draw() {
+        double w = canvas.getWidth();
+        double h = canvas.getHeight();
+
         gc.setFill(Color.web("#0F172A"));
-        gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+        gc.fillRect(0, 0, w, h);
 
+        double padding = 8;
+        double sectionHeight = (h - padding * 3) / 2.0;
+        double sectionWidth = w - padding * 2;
+
+        // NEXT box
+        double nextX = padding;
+        double nextY = padding;
+        drawBox(nextX, nextY, sectionWidth, sectionHeight, "NEXT", nextType);
+
+        // HOLD box
+        double holdX = padding;
+        double holdY = padding + sectionHeight + padding;
+        drawBox(holdX, holdY, sectionWidth, sectionHeight, "HOLD", holdType);
+    }
+
+    private void drawBox(double x, double y, double boxW, double boxH, String label, TetrominoFactory.TetrominoType type) {
+        // background and border
+        gc.setFill(Color.web("#081028"));
+        gc.fillRoundRect(x, y, boxW, boxH, 6, 6);
+        gc.setStroke(Color.web("#4B0082"));
+        gc.setLineWidth(2);
+        gc.strokeRoundRect(x, y, boxW, boxH, 6, 6);
+
+        // label
         gc.setFill(Color.WHITE);
-        gc.fillText("HOLD", 10, 20);
+        gc.fillText(label, x + 6, y + 16);
 
-        if (holdType == null) {
+        if (type == null) {
             return;
         }
 
-        int[][] shape = shapeOf(holdType);
-        Color color = colorOf(holdType);
+        int[][] shape = shapeOf(type);
+        Color color = colorOf(type);
+
+        int rows = shape.length;
+        int cols = (rows > 0) ? shape[0].length : 0;
+
+        double shapeW = cols * cellSize;
+        double shapeH = rows * cellSize;
+
+        double startX = x + (boxW - shapeW) / 2.0;
+        double startY = y + (boxH - shapeH) / 2.0 + 6;
 
         gc.setFill(color);
-        for (int row = 0; row < shape.length; row++) {
-            for (int col = 0; col < shape[row].length; col++) {
-                if (shape[row][col] == 0) {
-                    continue;
-                }
-                double x = 10 + col * cellSize;
-                double y = 30 + row * cellSize;
-                gc.fillRect(x, y, cellSize, cellSize);
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < cols; col++) {
+                if (shape[row][col] == 0) continue;
+                double bx = startX + col * cellSize;
+                double by = startY + row * cellSize;
+                gc.fillRect(bx, by, cellSize, cellSize);
                 gc.setStroke(Color.color(0, 0, 0, 0.3));
-                gc.strokeRect(x, y, cellSize, cellSize);
+                gc.strokeRect(bx, by, cellSize, cellSize);
             }
         }
     }

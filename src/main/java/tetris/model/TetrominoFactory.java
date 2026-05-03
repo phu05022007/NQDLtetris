@@ -25,6 +25,11 @@ public class TetrominoFactory {
         return create(randomType);
     }
 
+    public TetrominoType randomType() {
+        TetrominoType[] types = TetrominoType.values();
+        return types[random.nextInt(types.length)];
+    }
+
     public Tetromino create(TetrominoType type) {
         switch (type) {
             case I:

@@ -8,6 +8,7 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.Separator;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
@@ -55,12 +56,13 @@ public class TetrisFxAppExample extends Application {
     @Override
     public void start(Stage stage) {
         Canvas canvas = new Canvas(Board.COLUMNS * CELL_SIZE, (Board.ROWS + 3) * CELL_SIZE);
-        Canvas holdCanvas = new Canvas(6 * CELL_SIZE, 6 * CELL_SIZE);
+        Canvas holdCanvas = new Canvas(6 * CELL_SIZE, 12 * CELL_SIZE);
 
         BoardRenderer renderer = new BoardRenderer(canvas, CELL_SIZE);
         holdPanelRenderer = new HoldPanelRenderer(holdCanvas, CELL_SIZE);
         engine = new GameEngine();
         engine.addHoldPieceListener(holdPanelRenderer);
+        engine.addNextPieceListener(holdPanelRenderer);
         // Load custom font (Fredoka One) if available.
         try (InputStream is = getClass().getResourceAsStream("/fonts/FredokaOne-Regular.ttf")) {
             if (is != null) {
@@ -117,7 +119,43 @@ public class TetrisFxAppExample extends Application {
         // Help overlay will be built after language selection
         helpOverlay = null;
 
-        VBox rightBox = new VBox(12, holdCanvas, scoreLabel, linesLabel);
+        // Controls / status panel: contains score, lines, and control meanings
+        Label moveLabel = new Label(engine.getText("help.move"));
+        moveLabel.setFont(Font.font("Fredoka One", 12));
+        moveLabel.getStyleClass().add("help-line");
+        moveLabel.setTextFill(Color.WHITE);
+
+        Label rotateLabel = new Label(engine.getText("help.rotate"));
+        rotateLabel.setFont(Font.font("Fredoka One", 12));
+        rotateLabel.getStyleClass().add("help-line");
+        rotateLabel.setTextFill(Color.WHITE);
+
+        Label softDropLabel = new Label(engine.getText("help.softdrop"));
+        softDropLabel.setFont(Font.font("Fredoka One", 12));
+        softDropLabel.getStyleClass().add("help-line");
+        softDropLabel.setTextFill(Color.WHITE);
+
+        Label holdLabel = new Label(engine.getText("help.hold"));
+        holdLabel.setFont(Font.font("Fredoka One", 12));
+        holdLabel.getStyleClass().add("help-line");
+        holdLabel.setTextFill(Color.WHITE);
+
+        Label hardDropLabel = new Label(engine.getText("help.harddrop"));
+        hardDropLabel.setFont(Font.font("Fredoka One", 12));
+        hardDropLabel.getStyleClass().add("help-line");
+        hardDropLabel.setTextFill(Color.WHITE);
+
+        Separator separator = new Separator();
+        separator.getStyleClass().add("info-separator");
+        separator.setPrefWidth(140);
+
+        VBox infoPanel = new VBox(6);
+        infoPanel.setAlignment(Pos.TOP_CENTER);
+        infoPanel.getStyleClass().add("info-panel");
+        infoPanel.setPadding(new Insets(8));
+        infoPanel.getChildren().addAll(scoreLabel, linesLabel, separator, moveLabel, rotateLabel, softDropLabel, holdLabel, hardDropLabel);
+
+        VBox rightBox = new VBox(12, holdCanvas, infoPanel);
         rightBox.setAlignment(Pos.TOP_CENTER);
         rightBox.setPadding(new Insets(8));
 
@@ -182,6 +220,11 @@ public class TetrisFxAppExample extends Application {
             canvasStack.getChildren().add(helpOverlay);
             scoreLabel.setText(engine.getText("label.score") + engine.getScore());
             linesLabel.setText(engine.getText("label.lines") + engine.getTotalClearedLines());
+            moveLabel.setText(engine.getText("help.move"));
+            rotateLabel.setText(engine.getText("help.rotate"));
+            softDropLabel.setText(engine.getText("help.softdrop"));
+            holdLabel.setText(engine.getText("help.hold"));
+            hardDropLabel.setText(engine.getText("help.harddrop"));
             engine.start(renderer);
             scene.getRoot().requestFocus();
             startInputLoop();
@@ -195,6 +238,11 @@ public class TetrisFxAppExample extends Application {
             canvasStack.getChildren().add(helpOverlay);
             scoreLabel.setText(engine.getText("label.score") + engine.getScore());
             linesLabel.setText(engine.getText("label.lines") + engine.getTotalClearedLines());
+            moveLabel.setText(engine.getText("help.move"));
+            rotateLabel.setText(engine.getText("help.rotate"));
+            softDropLabel.setText(engine.getText("help.softdrop"));
+            holdLabel.setText(engine.getText("help.hold"));
+            hardDropLabel.setText(engine.getText("help.harddrop"));
             engine.start(renderer);
             scene.getRoot().requestFocus();
             startInputLoop();
@@ -217,6 +265,7 @@ public class TetrisFxAppExample extends Application {
         if (engine != null) {
             if (holdPanelRenderer != null) {
                 engine.removeHoldPieceListener(holdPanelRenderer);
+                engine.removeNextPieceListener(holdPanelRenderer);
             }
             engine.stop();
         }
