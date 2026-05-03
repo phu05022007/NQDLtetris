@@ -15,6 +15,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import java.io.InputStream;
 import javafx.stage.Stage;
 import tetris.engine.GameAction;
 import tetris.engine.GameEngine;
@@ -60,15 +61,24 @@ public class TetrisFxAppExample extends Application {
         holdPanelRenderer = new HoldPanelRenderer(holdCanvas, CELL_SIZE);
         engine = new GameEngine();
         engine.addHoldPieceListener(holdPanelRenderer);
+        // Load custom font (Fredoka One) if available.
+        try (InputStream is = getClass().getResourceAsStream("/fonts/FredokaOne-Regular.ttf")) {
+            if (is != null) {
+                Font.loadFont(is, 10);
+            }
+        } catch (Exception ex) {
+            System.err.println("Could not load Fredoka One font: " + ex.getMessage());
+        }
+
         // HUD labels
         scoreLabel = new Label("Score: 0");
-        scoreLabel.setFont(new Font(18));
+        scoreLabel.setFont(Font.font("Fredoka One", 18));
         scoreLabel.getStyleClass().add("hud-label");
         scoreLabel.setTextFill(Color.WHITE);
         scoreLabel.setEffect(new DropShadow(6, Color.web("#4B0082", 0.85)));
 
         linesLabel = new Label("Lines: 0");
-        linesLabel.setFont(new Font(14));
+        linesLabel.setFont(Font.font("Fredoka One", 14));
         linesLabel.getStyleClass().add("hud-label");
         linesLabel.setTextFill(Color.WHITE);
         linesLabel.setEffect(new DropShadow(6, Color.web("#4B0082", 0.85)));
@@ -89,7 +99,7 @@ public class TetrisFxAppExample extends Application {
         languageOverlay.setPadding(new Insets(16));
         languageOverlay.getStyleClass().add("language-overlay");
         Label langPrompt = new Label("Choose language / Chọn ngôn ngữ");
-        langPrompt.setFont(new Font(18));
+        langPrompt.setFont(Font.font("Fredoka One", 18));
         langPrompt.setTextFill(Color.WHITE);
         langPrompt.getStyleClass().add("language-prompt");
         langPrompt.setEffect(new DropShadow(6, Color.web("#4B0082", 0.85)));
@@ -298,7 +308,7 @@ public class TetrisFxAppExample extends Application {
         helpOverlay.setPadding(new Insets(12));
         helpOverlay.setStyle("-fx-background-color: linear-gradient(from 0% 0% to 0% 100%, rgba(0,0,0,0.85), rgba(43,11,68,0.65)); -fx-background-radius: 8;");
         Label helpTitle = new Label(engine.getText("help.title"));
-        helpTitle.setFont(new Font(16));
+        helpTitle.setFont(Font.font("Fredoka One", 16));
         helpTitle.setTextFill(Color.WHITE);
         helpTitle.setStyle("-fx-background-color: rgba(0,0,0,0.45); -fx-padding: 6 8; -fx-background-radius: 6; -fx-border-color: #4B0082; -fx-border-width: 1; -fx-border-radius: 6;");
         helpTitle.setEffect(new DropShadow(6, Color.web("#4B0082", 0.85)));

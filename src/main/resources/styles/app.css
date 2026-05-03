@@ -1,6 +1,10 @@
 /* Application stylesheet for Tetris UI */
 
 /* Root background and canvas area */
+.root {
+    -fx-font-family: 'Fredoka One';
+}
+
 .root-background {
     -fx-background-color: linear-gradient(#000000, #2b0b44);
 }

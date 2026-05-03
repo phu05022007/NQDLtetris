@@ -87,7 +87,7 @@ public class BoardRenderer implements GameRenderer {
     @Override
     public void drawText(String text, int x, int y) {
         // Draw text with a dark rounded background and a subtle shadow
-        Font font = new Font(Math.max(12, cellSize * 0.6));
+        Font font = Font.font("Fredoka One", Math.max(12, cellSize * 0.6));
         gc.setFont(font);
 
         double textX = x * cellSize + Math.max(4, cellSize * 0.08);
