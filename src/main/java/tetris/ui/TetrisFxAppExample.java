@@ -200,7 +200,12 @@ public class TetrisFxAppExample extends Application {
                     }
                     break;
                 case R:
-                    engine.handleInput(GameAction.RESUME);
+                    // Resume if paused; restart if game over; otherwise ignore.
+                    if (engine.getCurrentState() == engine.getPausedState()) {
+                        engine.handleInput(GameAction.RESUME);
+                    } else if (engine.getCurrentState() == engine.getGameOverState()) {
+                        engine.handleInput(GameAction.RESTART);
+                    }
                     break;
                 case ESCAPE:
                     engine.handleInput(GameAction.BACK_TO_MENU);
