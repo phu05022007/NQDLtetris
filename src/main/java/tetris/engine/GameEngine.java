@@ -32,7 +32,6 @@ public class GameEngine {
     private GameState currentState;
     private Tetromino currentTetromino;
     private TetrominoFactory.TetrominoType heldTetrominoType;
-    private boolean holdUsedThisTurn;
     private int score;
     private int totalClearedLines;
     private final List<HoldPieceListener> holdPieceListeners;
@@ -139,7 +138,6 @@ public class GameEngine {
         // initialize next piece
         this.nextTetrominoType = tetrominoFactory.randomType();
         this.heldTetrominoType = null;
-        this.holdUsedThisTurn = false;
 
         this.currentState = menuState;
         this.currentState.enter(this);
@@ -256,7 +254,6 @@ public class GameEngine {
     public void resetGame() {
         board.clear();
         currentTetromino = null;
-        holdUsedThisTurn = false;
         setHeldTetrominoType(null);
         score = 0;
         totalClearedLines = 0;
@@ -345,22 +342,30 @@ public class GameEngine {
     }
 
     public boolean holdCurrentPiece() {
-        if (currentTetromino == null || holdUsedThisTurn) {
+        if (currentTetromino == null) {
             return false;
         }
 
         TetrominoFactory.TetrominoType currentType = tetrominoFactory.typeFromId(currentTetromino.getId());
 
+        // If no piece is held yet, move current into hold and spawn next piece as usual.
         if (heldTetrominoType == null) {
             setHeldTetrominoType(currentType);
-            holdUsedThisTurn = true;
             return spawnRandomTetromino(false);
         }
 
+        // Swap: bring held piece into play at the current piece's position.
         TetrominoFactory.TetrominoType nextType = heldTetrominoType;
         setHeldTetrominoType(currentType);
-        holdUsedThisTurn = true;
-        return spawnTetrominoOfType(nextType, false);
+
+        Tetromino swapped = tetrominoFactory.create(nextType);
+        // place swapped piece at the same position as the piece we just held
+        swapped.setPosition(currentTetromino.getX(), currentTetromino.getY());
+
+        // If placing the swapped piece collides, report collision (game over condition).
+        boolean collides = board.checkCollision(swapped.getX(), swapped.getY(), swapped.getShape());
+        currentTetromino = swapped;
+        return collides;
     }
 
     public GameState getMenuState() {
@@ -440,17 +445,13 @@ public class GameEngine {
         // prepare next piece and notify listeners
         nextTetrominoType = tetrominoFactory.randomType();
         notifyNextPieceChanged(nextTetrominoType);
-        if (resetHoldForNewTurn) {
-            holdUsedThisTurn = false;
-        }
+        // unlimited holds: no per-turn reset necessary
         return board.checkCollision(currentTetromino.getX(), currentTetromino.getY(), currentTetromino.getShape());
     }
 
     private boolean spawnTetrominoOfType(TetrominoFactory.TetrominoType type, boolean resetHoldForNewTurn) {
         currentTetromino = tetrominoFactory.create(type);
-        if (resetHoldForNewTurn) {
-            holdUsedThisTurn = false;
-        }
+        // unlimited holds: no per-turn reset necessary
         return board.checkCollision(currentTetromino.getX(), currentTetromino.getY(), currentTetromino.getShape());
     }
 
