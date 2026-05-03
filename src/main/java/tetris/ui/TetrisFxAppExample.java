@@ -86,6 +86,8 @@ public class TetrisFxAppExample extends Application {
         // Canvas stack for overlay and styling
         canvasStack = new StackPane(canvas);
         canvasStack.getStyleClass().add("canvas-stack");
+        // Add renderer overlay node (styled via CSS) so states can show overlays.
+        canvasStack.getChildren().add(renderer.getOverlayNode());
         DropShadow ds = new DropShadow();
         ds.setRadius(8);
         ds.setOffsetY(2);

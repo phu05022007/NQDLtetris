@@ -139,6 +139,10 @@ public class GameEngine {
         currentState.exit(this);
         currentState = nextState;
         currentState.enter(this);
+        // Hide overlay when switching to playing state so gameplay is visible.
+        if (renderer != null && nextState == playingState) {
+            renderer.hideOverlay();
+        }
     }
 
     public void handleInput(GameAction action) {

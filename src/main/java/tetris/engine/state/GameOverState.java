@@ -34,9 +34,10 @@ public class GameOverState implements GameState {
     public void render(GameEngine engine, GameRenderer renderer) {
         renderer.clear();
         renderer.drawBoard(engine.getBoard(), engine.getCurrentTetromino(), engine.getGhostY());
-        renderer.drawText(engine.getText("gameover.title"), 3, 10);
-        renderer.drawText(engine.getText("label.score") + engine.getScore(), 3, 12);
-        renderer.drawText(engine.getText("gameover.instructions"), 1, 14);
+        renderer.drawOverlay(engine.getText("gameover.title"), new String[] {
+                engine.getText("label.score") + engine.getScore(),
+                engine.getText("gameover.instructions")
+        });
         renderer.present();
     }
 

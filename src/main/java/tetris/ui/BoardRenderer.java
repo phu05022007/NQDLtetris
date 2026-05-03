@@ -1,7 +1,13 @@
 package tetris.ui;
 
+import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Label;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
@@ -11,12 +17,14 @@ import tetris.model.Tetromino;
 
 /**
  * JavaFX Canvas renderer for Tetris board and active tetromino.
- * Uses immediate mode drawing to minimize per-frame object allocations.
+ * Overlay panels are implemented as JavaFX nodes so their appearance can be
+ * controlled by CSS (`app.css`).
  */
 public class BoardRenderer implements GameRenderer {
     private static final double STROKE_WIDTH = 1.0;
     private static final double GHOST_OPACITY = 0.25;
     private static final long FLASH_PERIOD_NS = 150_000_000L;
+    private static final javafx.scene.paint.Color INDIGO = Color.web("#4B0082");
 
     private final Canvas canvas;
     private final GraphicsContext gc;
@@ -25,6 +33,12 @@ public class BoardRenderer implements GameRenderer {
     private final Color backgroundColor;
     private final Color gridLineColor;
     private final Color[] paletteById;
+
+    // Overlay node (styled via CSS)
+    private final StackPane overlayRoot;
+    private final VBox overlayPanel;
+    private final Label overlayTitle;
+    private final VBox overlayLines;
 
     public BoardRenderer(Canvas canvas, double cellSize) {
         this(canvas, cellSize, Color.BLACK, Color.web("#2b0b44"));
@@ -37,6 +51,32 @@ public class BoardRenderer implements GameRenderer {
         this.backgroundColor = backgroundColor;
         this.gridLineColor = gridLineColor;
         this.paletteById = createPalette();
+
+        // Build overlay node and apply CSS classes
+        overlayRoot = new StackPane();
+        overlayRoot.getStyleClass().add("game-overlay-root");
+        overlayRoot.setVisible(false);
+
+        overlayPanel = new VBox(10);
+        overlayPanel.getStyleClass().add("overlay-panel");
+        overlayPanel.setAlignment(Pos.CENTER);
+
+        overlayTitle = new Label("");
+        overlayTitle.getStyleClass().add("overlay-title");
+
+        overlayLines = new VBox(6);
+        overlayLines.getStyleClass().add("overlay-lines");
+
+        overlayPanel.getChildren().addAll(overlayTitle, overlayLines);
+        overlayRoot.getChildren().add(overlayPanel);
+
+        // Ensure overlay matches canvas size when used in a StackPane
+        overlayRoot.prefWidthProperty().bind(canvas.widthProperty());
+        overlayRoot.prefHeightProperty().bind(canvas.heightProperty());
+    }
+
+    public Node getOverlayNode() {
+        return overlayRoot;
     }
 
     @Override
@@ -82,6 +122,31 @@ public class BoardRenderer implements GameRenderer {
             }
             drawTetrominoAt(activeTetromino, activeTetromino.getX(), activeTetromino.getY(), 1.0);
         }
+    }
+
+    @Override
+    public void drawOverlay(String title, String[] lines) {
+        if (title == null || title.isEmpty()) {
+            overlayRoot.setVisible(false);
+            return;
+        }
+
+        overlayTitle.setText(title);
+        overlayLines.getChildren().clear();
+        if (lines != null) {
+            for (String line : lines) {
+                Label l = new Label(line);
+                l.getStyleClass().add("overlay-line");
+                overlayLines.getChildren().add(l);
+            }
+        }
+
+        overlayRoot.setVisible(true);
+    }
+
+    @Override
+    public void hideOverlay() {
+        overlayRoot.setVisible(false);
     }
 
     @Override

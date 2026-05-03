@@ -13,5 +13,14 @@ public interface GameRenderer {
 
     void drawText(String text, int x, int y);
 
+    /**
+     * Draw a centered overlay panel with a title and optional lines beneath it
+     * (used for menu / paused / game over screens).
+     */
+    void drawOverlay(String title, String[] lines);
+
+    /** Hide any overlay panels. */
+    void hideOverlay();
+
     void present();
 }
