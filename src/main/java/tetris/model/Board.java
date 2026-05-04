@@ -54,7 +54,7 @@ public class Board {
     }
 
     public boolean canPlace(Tetromino tetromino) {
-        return !checkCollision(tetromino.getX(), tetromino.getY(), tetromino.getShape());
+        return !checkCollision(tetromino.getX(), tetromino.getY(), tetromino.getShapeRef());
     }
 
     /**
@@ -94,7 +94,7 @@ public class Board {
     }
 
     public void lock(Tetromino tetromino) {
-        int[][] shape = tetromino.getShape();
+        int[][] shape = tetromino.getShapeRef();
         int baseX = tetromino.getX();
         int baseY = tetromino.getY();
 

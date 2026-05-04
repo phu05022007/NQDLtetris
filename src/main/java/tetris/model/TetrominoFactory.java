@@ -76,6 +76,45 @@ public class TetrominoFactory {
         I, J, L, O, S, T, Z
     }
 
+    /**
+     * Create a new Tetromino by copying the shape and id from an existing tetromino,
+     * placing it at (x,y). This preserves orientation/rotation of the source.
+     */
+    public Tetromino createFrom(Tetromino src, int x, int y) {
+        if (src == null) return null;
+        int id = src.getId();
+        Tetromino out;
+        switch (id) {
+            case 1:
+                out = new ITetromino(x, y);
+                break;
+            case 2:
+                out = new JTetromino(x, y);
+                break;
+            case 3:
+                out = new LTetromino(x, y);
+                break;
+            case 4:
+                out = new OTetromino(x, y);
+                break;
+            case 5:
+                out = new STetromino(x, y);
+                break;
+            case 6:
+                out = new TTetromino(x, y);
+                break;
+            case 7:
+                out = new ZTetromino(x, y);
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown tetromino id: " + id);
+        }
+
+        // copy shape matrix from source (preserve rotation)
+        out.shape = Tetromino.copyMatrix(src.getShapeRef());
+        return out;
+    }
+
     private static final class ITetromino extends Tetromino {
         private ITetromino(int x, int y) {
             super(x, y, new int[][]{

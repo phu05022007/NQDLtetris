@@ -32,7 +32,7 @@ public class PausedState implements GameState {
     @Override
     public void render(GameEngine engine, GameRenderer renderer) {
         renderer.clear();
-        renderer.drawBoard(engine.getBoard(), engine.getCurrentTetromino(), engine.getGhostY());
+        renderer.drawBoard(engine.getBoard(), engine.getCurrentTetromino(), engine.getGhostY(), engine.getSwapFlashTetromino(), engine.isSwapFlashVisible());
         renderer.drawOverlay(engine.getText("paused.title"), new String[] { engine.getText("paused.instructions") });
         renderer.present();
     }

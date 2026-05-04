@@ -86,7 +86,7 @@ public class BoardRenderer implements GameRenderer {
     }
 
     @Override
-    public void drawBoard(Board board, Tetromino activeTetromino, int ghostY) {
+    public void drawBoard(Board board, Tetromino activeTetromino, int ghostY, Tetromino swapFlashTetromino, boolean swapFlashVisible) {
         int[][] grid = board.getGridView();
 
         for (int row = 0; row < Board.ROWS; row++) {
@@ -114,6 +114,27 @@ public class BoardRenderer implements GameRenderer {
                         double py = r * cellSize;
                         gc.fillRect(0, py, w, cellSize);
                     }
+                }
+            }
+        }
+
+        // Draw swap flash overlay (if scheduled)
+        if (swapFlashTetromino != null && swapFlashVisible) {
+            int[][] sshape = swapFlashTetromino.getShapeRef();
+            Color overlay = Color.web("#FFFF00", 0.65);
+            gc.setFill(overlay);
+            double w = cellSize * Board.COLUMNS;
+            int baseX = swapFlashTetromino.getX();
+            int baseY = swapFlashTetromino.getY();
+            for (int row = 0; row < sshape.length; row++) {
+                for (int col = 0; col < sshape[row].length; col++) {
+                    if (sshape[row][col] == 0) continue;
+                    int boardX = baseX + col;
+                    int boardY = baseY + row;
+                    if (boardY < 0 || boardY >= Board.ROWS || boardX < 0 || boardX >= Board.COLUMNS) continue;
+                    double px = boardX * cellSize;
+                    double py = boardY * cellSize;
+                    gc.fillRect(px, py, cellSize, cellSize);
                 }
             }
         }
@@ -201,7 +222,7 @@ public class BoardRenderer implements GameRenderer {
         gc.save();
         gc.setGlobalAlpha(opacity);
 
-        int[][] shape = tetromino.getShape();
+            int[][] shape = tetromino.getShapeRef();
 
         for (int row = 0; row < shape.length; row++) {
             for (int col = 0; col < shape[row].length; col++) {

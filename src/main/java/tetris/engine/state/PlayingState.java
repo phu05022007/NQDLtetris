@@ -64,7 +64,7 @@ public class PlayingState implements GameState {
     @Override
     public void render(GameEngine engine, GameRenderer renderer) {
         renderer.clear();
-        renderer.drawBoard(engine.getBoard(), engine.getCurrentTetromino(), engine.getGhostY());
+        renderer.drawBoard(engine.getBoard(), engine.getCurrentTetromino(), engine.getGhostY(), engine.getSwapFlashTetromino(), engine.isSwapFlashVisible());
         renderer.drawText(engine.getText("label.score") + engine.getScore(), 0, 21);
         renderer.drawText(engine.getText("label.lines") + engine.getTotalClearedLines(), 0, 22);
         renderer.present();

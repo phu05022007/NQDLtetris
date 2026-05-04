@@ -9,7 +9,7 @@ import tetris.model.Tetromino;
 public interface GameRenderer {
     void clear();
 
-    void drawBoard(Board board, Tetromino activeTetromino, int ghostY);
+    void drawBoard(Board board, Tetromino activeTetromino, int ghostY, Tetromino swapFlashTetromino, boolean swapFlashVisible);
 
     void drawText(String text, int x, int y);
 

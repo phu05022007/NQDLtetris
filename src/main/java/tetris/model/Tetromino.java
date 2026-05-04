@@ -6,7 +6,7 @@ package tetris.model;
 public abstract class Tetromino {
     private int x;
     private int y;
-    private int[][] shape;
+    protected int[][] shape;
     private final int id;
 
     protected Tetromino(int x, int y, int[][] shape, int id) {
@@ -30,6 +30,15 @@ public abstract class Tetromino {
 
     public int[][] getShape() {
         return copyMatrix(shape);
+    }
+
+    /**
+     * Return a direct reference to the internal shape matrix for read-only
+     * use by internal systems that must avoid allocations (rendering,
+     * collision checks). Callers MUST NOT mutate the returned matrix.
+     */
+    public int[][] getShapeRef() {
+        return shape;
     }
 
     public void setPosition(int x, int y) {

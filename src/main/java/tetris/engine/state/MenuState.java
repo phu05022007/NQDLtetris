@@ -31,7 +31,7 @@ public class MenuState implements GameState {
     @Override
     public void render(GameEngine engine, GameRenderer renderer) {
         renderer.clear();
-        renderer.drawBoard(engine.getBoard(), engine.getCurrentTetromino(), engine.getGhostY());
+        renderer.drawBoard(engine.getBoard(), engine.getCurrentTetromino(), engine.getGhostY(), engine.getSwapFlashTetromino(), engine.isSwapFlashVisible());
         renderer.drawOverlay(engine.getText("menu.title"), new String[] { engine.getText("menu.start") });
         renderer.present();
     }

@@ -37,6 +37,7 @@ public class GameEngine {
     private GameState currentState;
     private Tetromino currentTetromino;
     private TetrominoFactory.TetrominoType heldTetrominoType;
+    private tetris.model.Tetromino heldTetromino;
     private int score;
     private int totalClearedLines;
     private final List<HoldPieceListener> holdPieceListeners;
@@ -62,6 +63,13 @@ public class GameEngine {
     private final Random random = new Random();
 
     private TetrominoFactory.TetrominoType nextTetrominoType;
+    // Swap (hold) flash animation state
+    private boolean swapAnimating = false;
+    private long swapElapsedNs = 0L;
+    private static final long SWAP_FLASH_ANIMATION_NS = 220_000_000L; // 220ms
+    private static final long SWAP_FLASH_PERIOD_NS = 55_000_000L; // 55ms flash period
+    private Tetromino swapCandidate = null; // piece to place when animation completes
+    private Tetromino swapNewHeld = null; // piece to set as held when animation completes
 
     // Language for UI/localized text. Null until set by UI; default to EN when accessed.
     public enum Language {
@@ -116,6 +124,7 @@ public class GameEngine {
                     case "gameover.title": return "GAME OVER";
                     case "gameover.instructions": return "Press R to restart, Esc to return to menu";
                     case "label.score": return "Score: ";
+                    case "label.level": return "Level: ";
                     case "label.lines": return "Lines: ";
                     case "help.title": return "How to play";
                     case "help.move": return "Move: ← →";
@@ -145,6 +154,7 @@ public class GameEngine {
         // initialize next piece
         this.nextTetrominoType = tetrominoFactory.randomType();
         this.heldTetrominoType = null;
+        this.heldTetromino = null;
 
         this.currentState = menuState;
         this.currentState.enter(this);
@@ -201,8 +211,8 @@ public class GameEngine {
     }
 
     public void handleInput(GameAction action) {
-        if (lineClearAnimating) {
-            // Ignore input while clearing animation plays
+        if (lineClearAnimating || swapAnimating) {
+            // Ignore input while clearing or swap animation plays
             return;
         }
 
@@ -210,8 +220,8 @@ public class GameEngine {
     }
 
     public void update() {
-        if (lineClearAnimating) {
-            // Pause game updates while animation plays
+        if (lineClearAnimating || swapAnimating) {
+            // Pause game updates while animations play
             return;
         }
 
@@ -247,6 +257,10 @@ public class GameEngine {
                 if (lineClearAnimating) {
                     lineClearElapsedNs += deltaTimeNs;
                 }
+                // Advance swap animation timer if active
+                if (swapAnimating) {
+                    swapElapsedNs += deltaTimeNs;
+                }
 
                 updateAccumulatorNs += deltaTimeNs;
                 renderAccumulatorNs += deltaTimeNs;
@@ -265,6 +279,10 @@ public class GameEngine {
                 if (lineClearAnimating && lineClearElapsedNs >= currentLineClearAnimationNs) {
                     finalizeLineClearAnimation();
                 }
+                // Finalize swap after animation duration
+                if (swapAnimating && swapElapsedNs >= SWAP_FLASH_ANIMATION_NS) {
+                    finalizeSwapAnimation();
+                }
             }
         };
 
@@ -281,17 +299,18 @@ public class GameEngine {
         board.clear();
         currentTetromino = null;
         setHeldTetrominoType(null);
+        this.heldTetromino = null;
         score = 0;
         totalClearedLines = 0;
     }
 
     public boolean stepDown() {
         if (currentTetromino == null) {
-            return spawnRandomTetromino(true);
+            return spawnRandomTetromino();
         }
 
         int nextY = currentTetromino.getY() + 1;
-        if (board.checkCollision(currentTetromino.getX(), nextY, currentTetromino.getShape())) {
+        if (board.checkCollision(currentTetromino.getX(), nextY, currentTetromino.getShapeRef())) {
             board.lock(currentTetromino);
 
             // Detect full lines first and play animation if any.
@@ -307,7 +326,7 @@ public class GameEngine {
             int cleared = board.clearFullLines();
             totalClearedLines += cleared;
             score += calculateScore(cleared);
-            return spawnRandomTetromino(true);
+            return spawnRandomTetromino();
         }
 
         currentTetromino.setPosition(currentTetromino.getX(), nextY);
@@ -321,7 +340,7 @@ public class GameEngine {
      */
     public boolean hardDrop() {
         if (currentTetromino == null) {
-            return spawnRandomTetromino(true);
+            return spawnRandomTetromino();
         }
 
         int ghostY = getGhostY();
@@ -336,7 +355,7 @@ public class GameEngine {
             return false;
         }
 
-        return spawnRandomTetromino(true);
+        return spawnRandomTetromino();
     }
 
     public void moveCurrent(int dx, int dy) {
@@ -346,7 +365,7 @@ public class GameEngine {
 
         int targetX = currentTetromino.getX() + dx;
         int targetY = currentTetromino.getY() + dy;
-        if (!board.checkCollision(targetX, targetY, currentTetromino.getShape())) {
+        if (!board.checkCollision(targetX, targetY, currentTetromino.getShapeRef())) {
             currentTetromino.setPosition(targetX, targetY);
         }
     }
@@ -360,7 +379,7 @@ public class GameEngine {
         if (board.checkCollision(
                 currentTetromino.getX(),
                 currentTetromino.getY(),
-                currentTetromino.getShape()
+                currentTetromino.getShapeRef()
         )) {
             // Revert if rotation collides.
             currentTetromino.rotateCounterClockwise();
@@ -371,27 +390,45 @@ public class GameEngine {
         if (currentTetromino == null) {
             return false;
         }
-
         TetrominoFactory.TetrominoType currentType = tetrominoFactory.typeFromId(currentTetromino.getId());
 
-        // If no piece is held yet, move current into hold and spawn next piece as usual.
-        if (heldTetrominoType == null) {
+        // If no piece is held yet, store a copy of the current piece and spawn next immediately.
+        if (heldTetromino == null) {
+            heldTetromino = tetrominoFactory.createFrom(currentTetromino, 0, 0);
             setHeldTetrominoType(currentType);
-            return spawnRandomTetromino(false);
+            return spawnRandomTetromino();
         }
 
-        // Swap: bring held piece into play at the current piece's position.
-        TetrominoFactory.TetrominoType nextType = heldTetrominoType;
-        setHeldTetrominoType(currentType);
+        // Prepare swapped candidate (preserve rotation) and a new held copy.
+        Tetromino swapped = tetrominoFactory.createFrom(heldTetromino, currentTetromino.getX(), currentTetromino.getY());
+        Tetromino newHeld = tetrominoFactory.createFrom(currentTetromino, 0, 0);
 
-        Tetromino swapped = tetrominoFactory.create(nextType);
-        // place swapped piece at the same position as the piece we just held
-        swapped.setPosition(currentTetromino.getX(), currentTetromino.getY());
+        // If placing the swapped piece collides, try simple kicks; if still colliding, cancel swap.
+        if (board.checkCollision(swapped.getX(), swapped.getY(), swapped.getShapeRef())) {
+            int[] dxs = new int[]{-1, 1, -2, 2};
+            boolean placed = false;
+            for (int dx : dxs) {
+                if (!board.checkCollision(swapped.getX() + dx, swapped.getY(), swapped.getShapeRef())) {
+                    swapped.setPosition(swapped.getX() + dx, swapped.getY());
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed && !board.checkCollision(swapped.getX(), swapped.getY() - 1, swapped.getShapeRef())) {
+                swapped.setPosition(swapped.getX(), swapped.getY() - 1);
+                placed = true;
+            }
 
-        // If placing the swapped piece collides, report collision (game over condition).
-        boolean collides = board.checkCollision(swapped.getX(), swapped.getY(), swapped.getShape());
-        currentTetromino = swapped;
-        return collides;
+            if (!placed) {
+                // Cannot place swapped piece safely — cancel swap and do nothing.
+                return false;
+            }
+        }
+
+        // Start a brief flash animation showing where the swapped piece will land,
+        // then commit the swap when the animation completes.
+        startSwapAnimation(swapped, newHeld);
+        return false;
     }
 
     public GameState getMenuState() {
@@ -448,8 +485,7 @@ public class GameEngine {
 
         int targetX = currentTetromino.getX();
         int ghostY = currentTetromino.getY();
-        int[][] shape = currentTetromino.getShape();
-
+        int[][] shape = currentTetromino.getShapeRef();
         while (!board.checkCollision(targetX, ghostY + 1, shape)) {
             ghostY++;
         }
@@ -465,20 +501,20 @@ public class GameEngine {
         return totalClearedLines;
     }
 
-    private boolean spawnRandomTetromino(boolean resetHoldForNewTurn) {
+    private boolean spawnRandomTetromino() {
         TetrominoFactory.TetrominoType toSpawn = (nextTetrominoType != null) ? nextTetrominoType : tetrominoFactory.randomType();
         currentTetromino = tetrominoFactory.create(toSpawn);
         // prepare next piece and notify listeners
         nextTetrominoType = tetrominoFactory.randomType();
         notifyNextPieceChanged(nextTetrominoType);
         // unlimited holds: no per-turn reset necessary
-        return board.checkCollision(currentTetromino.getX(), currentTetromino.getY(), currentTetromino.getShape());
+        return board.checkCollision(currentTetromino.getX(), currentTetromino.getY(), currentTetromino.getShapeRef());
     }
 
-    private boolean spawnTetrominoOfType(TetrominoFactory.TetrominoType type, boolean resetHoldForNewTurn) {
+    private boolean spawnTetrominoOfType(TetrominoFactory.TetrominoType type) {
         currentTetromino = tetrominoFactory.create(type);
         // unlimited holds: no per-turn reset necessary
-        return board.checkCollision(currentTetromino.getX(), currentTetromino.getY(), currentTetromino.getShape());
+        return board.checkCollision(currentTetromino.getX(), currentTetromino.getY(), currentTetromino.getShapeRef());
     }
 
     private void setHeldTetrominoType(TetrominoFactory.TetrominoType type) {
@@ -546,9 +582,50 @@ public class GameEngine {
         score += calculateScore(cleared);
 
         // Spawn next piece and handle game over
-        boolean gameOver = spawnRandomTetromino(true);
+        boolean gameOver = spawnRandomTetromino();
         if (gameOver) {
             changeState(gameOverState);
         }
+    }
+
+    private void startSwapAnimation(Tetromino candidate, Tetromino newHeld) {
+        if (candidate == null) return;
+        this.swapCandidate = candidate;
+        this.swapNewHeld = newHeld;
+        this.swapElapsedNs = 0L;
+        this.swapAnimating = true;
+    }
+
+    private void finalizeSwapAnimation() {
+        if (!swapAnimating || swapCandidate == null) {
+            swapAnimating = false;
+            swapElapsedNs = 0L;
+            swapCandidate = null;
+            swapNewHeld = null;
+            return;
+        }
+
+        // Commit the swap: set current tetromino to candidate and update held piece
+        currentTetromino = swapCandidate;
+        swapCandidate = null;
+
+        if (swapNewHeld != null) {
+            this.heldTetromino = swapNewHeld;
+            setHeldTetrominoType(tetrominoFactory.typeFromId(heldTetromino.getId()));
+            swapNewHeld = null;
+        }
+
+        swapAnimating = false;
+        swapElapsedNs = 0L;
+    }
+
+    public Tetromino getSwapFlashTetromino() {
+        return swapAnimating ? swapCandidate : null;
+    }
+
+    public boolean isSwapFlashVisible() {
+        if (!swapAnimating) return false;
+        long period = SWAP_FLASH_PERIOD_NS > 0 ? SWAP_FLASH_PERIOD_NS : LINE_CLEAR_FLASH_PERIOD_NS;
+        return ((swapElapsedNs / period) % 2) == 0;
     }
 }
