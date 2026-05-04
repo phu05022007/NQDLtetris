@@ -52,6 +52,7 @@ public class TetrisFxAppExample extends Application {
     private StackPane canvasStack;
     private VBox helpOverlay;
     private VBox languageOverlay;
+    private VBox levelOverlay;
 
     @Override
     public void start(Stage stage) {
@@ -97,7 +98,7 @@ public class TetrisFxAppExample extends Application {
         canvas.setEffect(ds);
         holdCanvas.setEffect(ds);
 
-        // Language selection overlay (shown at startup)
+        // Language selection overlay (shown at startup) — will cover full window
         languageOverlay = new VBox(12);
         languageOverlay.setAlignment(Pos.CENTER);
         languageOverlay.setPadding(new Insets(16));
@@ -112,12 +113,10 @@ public class TetrisFxAppExample extends Application {
         HBox langButtons = new HBox(8, enButton, viButton);
         langButtons.setAlignment(Pos.CENTER);
         languageOverlay.getChildren().addAll(langPrompt, langButtons);
-        languageOverlay.setMaxWidth(canvas.getWidth() * 0.8);
-        languageOverlay.setMaxHeight(canvas.getHeight() * 0.6);
-        canvasStack.getChildren().add(languageOverlay);
 
         // Help overlay will be built after language selection
         helpOverlay = null;
+        levelOverlay = null;
 
         // Controls / status panel: contains score, lines, and control meanings
         Label moveLabel = new Label(engine.getText("help.move"));
@@ -161,7 +160,13 @@ public class TetrisFxAppExample extends Application {
 
         HBox root = new HBox(12, canvasStack, rightBox);
         root.getStyleClass().add("root-background");
-        Scene scene = new Scene(root);
+        // Wrap the main layout in a StackPane so overlays can cover the full window.
+        StackPane rootStack = new StackPane(root);
+        Scene scene = new Scene(rootStack);
+        // Add the language overlay to the top-level stack so it covers whole window
+        rootStack.getChildren().add(languageOverlay);
+        languageOverlay.prefWidthProperty().bind(rootStack.widthProperty());
+        languageOverlay.prefHeightProperty().bind(rootStack.heightProperty());
         // Load centralized stylesheet for theme and component styles.
         scene.getStylesheets().add(getClass().getResource("/styles/app.css").toExternalForm());
         scene.setOnKeyPressed(event -> {
@@ -169,7 +174,7 @@ public class TetrisFxAppExample extends Application {
             boolean firstPress = pressedKeys.add(code);
 
             // Ignore input until language is selected
-            if (languageOverlay != null && languageOverlay.isVisible()) {
+            if ((languageOverlay != null && languageOverlay.isVisible()) || (levelOverlay != null && levelOverlay.isVisible())) {
                 return;
             }
 
@@ -216,41 +221,99 @@ public class TetrisFxAppExample extends Application {
         });
         scene.setOnKeyReleased(event -> pressedKeys.remove(event.getCode()));
 
-        // Language selection button handlers
+        // Language selection button handlers: after language choose, show level overlay
         enButton.setOnAction(e -> {
             engine.setLanguage(tetris.engine.GameEngine.Language.EN);
             buildHelpOverlay();
-            canvasStack.getChildren().remove(languageOverlay);
+            // remove language overlay and show level chooser
+            rootStack.getChildren().remove(languageOverlay);
             languageOverlay.setVisible(false);
-            canvasStack.getChildren().add(helpOverlay);
-            scoreLabel.setText(engine.getText("label.score") + engine.getScore());
-            linesLabel.setText(engine.getText("label.lines") + engine.getTotalClearedLines());
-            moveLabel.setText(engine.getText("help.move"));
-            rotateLabel.setText(engine.getText("help.rotate"));
-            softDropLabel.setText(engine.getText("help.softdrop"));
-            holdLabel.setText(engine.getText("help.hold"));
-            hardDropLabel.setText(engine.getText("help.harddrop"));
-            engine.start(renderer);
-            scene.getRoot().requestFocus();
-            startInputLoop();
+
+            // build level overlay
+            levelOverlay = new VBox(12);
+            levelOverlay.setAlignment(Pos.CENTER);
+            levelOverlay.setPadding(new Insets(16));
+            levelOverlay.setStyle("-fx-background-color: linear-gradient(from 0% 0% to 0% 100%, rgba(0,0,0,0.85), rgba(43,11,68,0.65));");
+            Label levelPrompt = new Label(engine.getText("level.title"));
+            levelPrompt.setFont(Font.font("Fredoka One", 18));
+            levelPrompt.setTextFill(Color.WHITE);
+            HBox levelButtons = new HBox(6);
+            levelButtons.setAlignment(Pos.CENTER);
+            for (int i = 1; i <= 10; i++) {
+                Button b = new Button(String.valueOf(i));
+                final int lv = i;
+                b.setOnAction(ev -> {
+                    engine.setLevel(lv);
+                    scoreLabel.setText(engine.getText("label.score") + engine.getScore());
+                    linesLabel.setText(engine.getText("label.lines") + engine.getTotalClearedLines());
+                    moveLabel.setText(engine.getText("help.move"));
+                    rotateLabel.setText(engine.getText("help.rotate"));
+                    softDropLabel.setText(engine.getText("help.softdrop"));
+                    holdLabel.setText(engine.getText("help.hold"));
+                    hardDropLabel.setText(engine.getText("help.harddrop"));
+
+                    rootStack.getChildren().remove(levelOverlay);
+                    levelOverlay.setVisible(false);
+                    rootStack.getChildren().add(helpOverlay);
+                    helpOverlay.setVisible(false);
+
+                    engine.start(renderer);
+                    scene.getRoot().requestFocus();
+                    startInputLoop();
+                });
+                levelButtons.getChildren().add(b);
+            }
+            levelOverlay.getChildren().addAll(levelPrompt, levelButtons);
+            levelOverlay.prefWidthProperty().bind(rootStack.widthProperty());
+            levelOverlay.prefHeightProperty().bind(rootStack.heightProperty());
+            rootStack.getChildren().add(levelOverlay);
         });
 
         viButton.setOnAction(e -> {
             engine.setLanguage(tetris.engine.GameEngine.Language.VI);
             buildHelpOverlay();
-            canvasStack.getChildren().remove(languageOverlay);
+            // remove language overlay and show level chooser
+            rootStack.getChildren().remove(languageOverlay);
             languageOverlay.setVisible(false);
-            canvasStack.getChildren().add(helpOverlay);
-            scoreLabel.setText(engine.getText("label.score") + engine.getScore());
-            linesLabel.setText(engine.getText("label.lines") + engine.getTotalClearedLines());
-            moveLabel.setText(engine.getText("help.move"));
-            rotateLabel.setText(engine.getText("help.rotate"));
-            softDropLabel.setText(engine.getText("help.softdrop"));
-            holdLabel.setText(engine.getText("help.hold"));
-            hardDropLabel.setText(engine.getText("help.harddrop"));
-            engine.start(renderer);
-            scene.getRoot().requestFocus();
-            startInputLoop();
+
+            // build level overlay
+            levelOverlay = new VBox(12);
+            levelOverlay.setAlignment(Pos.CENTER);
+            levelOverlay.setPadding(new Insets(16));
+            levelOverlay.setStyle("-fx-background-color: linear-gradient(from 0% 0% to 0% 100%, rgba(0,0,0,0.85), rgba(43,11,68,0.65));");
+            Label levelPrompt = new Label(engine.getText("level.title"));
+            levelPrompt.setFont(Font.font("Fredoka One", 18));
+            levelPrompt.setTextFill(Color.WHITE);
+            HBox levelButtons = new HBox(6);
+            levelButtons.setAlignment(Pos.CENTER);
+            for (int i = 1; i <= 10; i++) {
+                Button b = new Button(String.valueOf(i));
+                final int lv = i;
+                b.setOnAction(ev -> {
+                    engine.setLevel(lv);
+                    scoreLabel.setText(engine.getText("label.score") + engine.getScore());
+                    linesLabel.setText(engine.getText("label.lines") + engine.getTotalClearedLines());
+                    moveLabel.setText(engine.getText("help.move"));
+                    rotateLabel.setText(engine.getText("help.rotate"));
+                    softDropLabel.setText(engine.getText("help.softdrop"));
+                    holdLabel.setText(engine.getText("help.hold"));
+                    hardDropLabel.setText(engine.getText("help.harddrop"));
+
+                    rootStack.getChildren().remove(levelOverlay);
+                    levelOverlay.setVisible(false);
+                    rootStack.getChildren().add(helpOverlay);
+                    helpOverlay.setVisible(false);
+
+                    engine.start(renderer);
+                    scene.getRoot().requestFocus();
+                    startInputLoop();
+                });
+                levelButtons.getChildren().add(b);
+            }
+            levelOverlay.getChildren().addAll(levelPrompt, levelButtons);
+            levelOverlay.prefWidthProperty().bind(rootStack.widthProperty());
+            levelOverlay.prefHeightProperty().bind(rootStack.heightProperty());
+            rootStack.getChildren().add(levelOverlay);
         });
 
         stage.setTitle("Tetris - JavaFX Canvas");

@@ -21,6 +21,11 @@ public class GameEngine {
     private static final long UPDATE_INTERVAL_NS = 500_000_000L;
     private static final long TARGET_FRAME_INTERVAL_NS = 16_666_667L;
 
+    private static final int MAX_LEVEL = 10;
+    private int level = 1;
+    private static final double LEVEL_SPEED_FACTOR = 1.3; // 30% speed increase per level
+    private long updateIntervalNs = UPDATE_INTERVAL_NS;
+
     private final Board board;
     private final TetrominoFactory tetrominoFactory;
 
@@ -99,6 +104,7 @@ public class GameEngine {
                     case "help.controls": return "Bắt đầu: Enter | Tạm dừng: P | Tiếp tục: R";
                     case "help.menu": return "Quay về menu: Esc | Hiện/ẩn hướng dẫn: H";
                     case "help.goal": return "Mục tiêu: Hoàn thành hàng để ghi điểm: 1=100,2=300,3=500,4=800";
+                    case "level.title": return "Chọn cấp độ";
                     default: return key;
                 }
             default:
@@ -120,6 +126,7 @@ public class GameEngine {
                     case "help.controls": return "Start: Enter | Pause: P | Resume: R";
                     case "help.menu": return "Back to menu: Esc | Toggle help: H";
                     case "help.goal": return "Goal: clear lines to score: 1=100,2=300,3=500,4=800";
+                    case "level.title": return "Choose Level";
                     default: return key;
                 }
         }
@@ -141,6 +148,25 @@ public class GameEngine {
 
         this.currentState = menuState;
         this.currentState.enter(this);
+
+        // Ensure update interval matches initial level
+        setLevel(this.level);
+    }
+
+    public void setLevel(int newLevel) {
+        if (newLevel < 1) {
+            newLevel = 1;
+        }
+        if (newLevel > MAX_LEVEL) {
+            newLevel = MAX_LEVEL;
+        }
+        this.level = newLevel;
+        double factor = Math.pow(LEVEL_SPEED_FACTOR, this.level - 1);
+        this.updateIntervalNs = (long) (UPDATE_INTERVAL_NS / factor);
+    }
+
+    public int getLevel() {
+        return this.level;
     }
 
     public TetrominoFactory.TetrominoType getNextTetrominoType() {
@@ -225,9 +251,9 @@ public class GameEngine {
                 updateAccumulatorNs += deltaTimeNs;
                 renderAccumulatorNs += deltaTimeNs;
 
-                while (updateAccumulatorNs >= UPDATE_INTERVAL_NS) {
+                while (updateAccumulatorNs >= updateIntervalNs) {
                     GameEngine.this.update();
-                    updateAccumulatorNs -= UPDATE_INTERVAL_NS;
+                    updateAccumulatorNs -= updateIntervalNs;
                 }
 
                 while (renderAccumulatorNs >= TARGET_FRAME_INTERVAL_NS) {
