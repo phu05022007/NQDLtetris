@@ -16,6 +16,7 @@ import javafx.util.Duration;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -174,9 +175,9 @@ public class TetrisFxAppExample extends Application {
         infoPanel.setAlignment(Pos.TOP_CENTER);
         infoPanel.getStyleClass().add("info-panel");
         infoPanel.setPadding(new Insets(8));
-        infoPanel.getChildren().addAll(scoreLabel, linesLabel, levelLabel, separator, moveLabel, rotateLabel, softDropLabel, holdLabel, hardDropLabel);
+        infoPanel.getChildren().addAll(scoreLabel, linesLabel, separator, moveLabel, rotateLabel, softDropLabel, holdLabel, hardDropLabel);
 
-        VBox rightBox = new VBox(12, holdCanvas, infoPanel);
+        VBox rightBox = new VBox(12, levelLabel, holdCanvas, infoPanel);
         rightBox.setAlignment(Pos.TOP_CENTER);
         rightBox.setPadding(new Insets(8));
 
@@ -235,7 +236,16 @@ public class TetrisFxAppExample extends Application {
                     }
                     break;
                 case ESCAPE:
-                    engine.handleInput(GameAction.BACK_TO_MENU);
+                    if (engine.getCurrentState() == engine.getGameOverState()) {
+                        if (levelOverlay != null) {
+                            if (!rootStack.getChildren().contains(levelOverlay)) {
+                                rootStack.getChildren().add(levelOverlay);
+                            }
+                            levelOverlay.setVisible(true);
+                        }
+                    } else {
+                        engine.handleInput(GameAction.BACK_TO_MENU);
+                    }
                     break;
                 default:
                     break;
@@ -251,7 +261,7 @@ public class TetrisFxAppExample extends Application {
             rootStack.getChildren().remove(languageOverlay);
             languageOverlay.setVisible(false);
 
-            // build level overlay with grid background and larger colored buttons
+            // build level overlay with grid background and larger colored buttons (2 columns x 5 rows, zigzag order)
             levelOverlay = new StackPane();
             levelOverlay.setAlignment(Pos.CENTER);
 
@@ -262,78 +272,72 @@ public class TetrisFxAppExample extends Application {
             levelGrid.heightProperty().addListener((obs,o,n) -> drawGrid(levelGrid));
 
             Label levelPrompt = new Label(engine.getText("level.title"));
-            levelPrompt.setFont(Font.font("Fredoka One", 18));
+            levelPrompt.setFont(Font.font("Fredoka One", 20));
             levelPrompt.setTextFill(Color.WHITE);
 
-            FlowPane levelButtons = new FlowPane();
-            levelButtons.setHgap(10);
-            levelButtons.setVgap(10);
-            levelButtons.setAlignment(Pos.CENTER);
+            GridPane grid = new GridPane();
+            grid.setHgap(18);
+            grid.setVgap(18);
+            grid.setAlignment(Pos.CENTER);
 
             String[] colors = new String[]{"#ff6b6b","#ff9f43","#ffd166","#06d6a0","#4cc9f0","#1e90ff","#845ec2","#ff77a8","#d65db1","#8ac926"};
-            for (int i = 1; i <= 10; i++) {
-                Button b = new Button(String.valueOf(i));
-                b.setPrefSize(64, 64);
-                final int lv = i;
-                String color = colors[(i - 1) % colors.length];
-                b.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold; -fx-background-radius: 8;");
+            int buttonSize = 96;
+            for (int r = 0; r < 5; r++) {
+                for (int c = 0; c < 2; c++) {
+                    int base = r * 2;
+                    int lvl = (r % 2 == 0) ? (base + c + 1) : (base + (2 - c));
+                    Button b = new Button(String.valueOf(lvl));
+                    final int lv = lvl;
+                    String color = colors[(lv - 1) % colors.length];
+                    b.setPrefSize(buttonSize, buttonSize);
+                    b.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold; -fx-background-radius: 8;");
 
-                // Hover / pressed effects
-                b.setOnMouseEntered(evt -> {
-                    b.setEffect(new DropShadow(12, Color.web(color)));
-                    b.setScaleX(1.05);
-                    b.setScaleY(1.05);
-                });
-                b.setOnMouseExited(evt -> {
-                    b.setEffect(null);
-                    b.setScaleX(1.0);
-                    b.setScaleY(1.0);
-                });
-                b.setOnMousePressed(evt -> {
-                    b.setScaleX(0.95);
-                    b.setScaleY(0.95);
-                });
-                b.setOnMouseReleased(evt -> {
-                    b.setScaleX(1.05);
-                    b.setScaleY(1.05);
-                });
+                    b.setOnMouseEntered(evt -> {
+                        b.setEffect(new DropShadow(14, Color.web(color)));
+                        b.setScaleX(1.06);
+                        b.setScaleY(1.06);
+                    });
+                    b.setOnMouseExited(evt -> {
+                        b.setEffect(null);
+                        b.setScaleX(1.0);
+                        b.setScaleY(1.0);
+                    });
+                    b.setOnMousePressed(evt -> { b.setScaleX(0.96); b.setScaleY(0.96); });
+                    b.setOnMouseReleased(evt -> { b.setScaleX(1.06); b.setScaleY(1.06); });
 
-                b.setOnAction(ev -> {
-                    engine.setLevel(lv);
-                    // Update HUD
-                    scoreLabel.setText(engine.getText("label.score") + engine.getScore());
-                    linesLabel.setText(engine.getText("label.lines") + engine.getTotalClearedLines());
-                    levelLabel.setText(engine.getText("label.level") + engine.getLevel());
-                    moveLabel.setText(engine.getText("help.move"));
-                    rotateLabel.setText(engine.getText("help.rotate"));
-                    softDropLabel.setText(engine.getText("help.softdrop"));
-                    holdLabel.setText(engine.getText("help.hold"));
-                    hardDropLabel.setText(engine.getText("help.harddrop"));
+                    b.setOnAction(ev -> {
+                        engine.setLevel(lv);
+                        // Update HUD
+                        scoreLabel.setText(engine.getText("label.score") + engine.getScore());
+                        linesLabel.setText(engine.getText("label.lines") + engine.getTotalClearedLines());
+                        levelLabel.setText(engine.getText("label.level") + engine.getLevel());
+                        moveLabel.setText(engine.getText("help.move"));
+                        rotateLabel.setText(engine.getText("help.rotate"));
+                        softDropLabel.setText(engine.getText("help.softdrop"));
+                        holdLabel.setText(engine.getText("help.hold"));
+                        hardDropLabel.setText(engine.getText("help.harddrop"));
 
-                    // Pulse animation on level label
-                    ScaleTransition st = new ScaleTransition(Duration.millis(260), levelLabel);
-                    st.setFromX(1.0);
-                    st.setFromY(1.0);
-                    st.setToX(1.35);
-                    st.setToY(1.35);
-                    st.setAutoReverse(true);
-                    st.setCycleCount(2);
-                    st.play();
+                        // Pulse animation on level label
+                        ScaleTransition st = new ScaleTransition(Duration.millis(260), levelLabel);
+                        st.setFromX(1.0); st.setFromY(1.0);
+                        st.setToX(1.35); st.setToY(1.35);
+                        st.setAutoReverse(true); st.setCycleCount(2); st.play();
 
-                    rootStack.getChildren().remove(levelOverlay);
-                    levelOverlay.setVisible(false);
-                    rootStack.getChildren().add(helpOverlay);
-                    helpOverlay.setVisible(false);
+                        rootStack.getChildren().remove(levelOverlay);
+                        levelOverlay.setVisible(false);
+                        rootStack.getChildren().add(helpOverlay);
+                        helpOverlay.setVisible(false);
 
-                    engine.start(renderer);
-                    scene.getRoot().requestFocus();
-                    startInputLoop();
-                });
+                        engine.start(renderer);
+                        scene.getRoot().requestFocus();
+                        startInputLoop();
+                    });
 
-                levelButtons.getChildren().add(b);
+                    grid.add(b, c, r);
+                }
             }
 
-            VBox centerBox = new VBox(12, levelPrompt, levelButtons);
+            VBox centerBox = new VBox(18, levelPrompt, grid);
             centerBox.setAlignment(Pos.CENTER);
             centerBox.setPadding(new Insets(16));
 
@@ -350,51 +354,72 @@ public class TetrisFxAppExample extends Application {
             rootStack.getChildren().remove(languageOverlay);
             languageOverlay.setVisible(false);
 
-            // build level overlay as a StackPane wrapper containing a centered VBox
-            StackPane lvlOverlay = new StackPane();
-            lvlOverlay.setAlignment(Pos.CENTER);
-            lvlOverlay.setStyle("-fx-background-color: linear-gradient(from 0% 0% to 0% 100%, rgba(0,0,0,0.85), rgba(43,11,68,0.65));");
+            // build VI level overlay consistent with EN: 2 columns x 5 rows, zigzag order
+            levelOverlay = new StackPane();
+            levelOverlay.setAlignment(Pos.CENTER);
+            levelOverlay.setStyle("-fx-background-color: linear-gradient(from 0% 0% to 0% 100%, rgba(0,0,0,0.85), rgba(43,11,68,0.65));");
 
-            VBox lvlBox = new VBox(12);
-            lvlBox.setAlignment(Pos.CENTER);
-            lvlBox.setPadding(new Insets(16));
+            Canvas levelGrid = new Canvas();
+            levelGrid.widthProperty().bind(levelOverlay.widthProperty());
+            levelGrid.heightProperty().bind(levelOverlay.heightProperty());
+            levelGrid.widthProperty().addListener((obs,o,n) -> drawGrid(levelGrid));
+            levelGrid.heightProperty().addListener((obs,o,n) -> drawGrid(levelGrid));
 
             Label levelPrompt = new Label(engine.getText("level.title"));
-            levelPrompt.setFont(Font.font("Fredoka One", 18));
+            levelPrompt.setFont(Font.font("Fredoka One", 20));
             levelPrompt.setTextFill(Color.WHITE);
 
-            HBox levelButtons = new HBox(6);
-            levelButtons.setAlignment(Pos.CENTER);
-            for (int i = 1; i <= 10; i++) {
-                Button b = new Button(String.valueOf(i));
-                final int lv = i;
-                b.setOnAction(ev -> {
-                    engine.setLevel(lv);
-                    scoreLabel.setText(engine.getText("label.score") + engine.getScore());
-                    linesLabel.setText(engine.getText("label.lines") + engine.getTotalClearedLines());
-                    moveLabel.setText(engine.getText("help.move"));
-                    rotateLabel.setText(engine.getText("help.rotate"));
-                    softDropLabel.setText(engine.getText("help.softdrop"));
-                    holdLabel.setText(engine.getText("help.hold"));
-                    hardDropLabel.setText(engine.getText("help.harddrop"));
+            GridPane grid = new GridPane();
+            grid.setHgap(18);
+            grid.setVgap(18);
+            grid.setAlignment(Pos.CENTER);
 
-                    rootStack.getChildren().remove(levelOverlay);
-                    levelOverlay.setVisible(false);
-                    rootStack.getChildren().add(helpOverlay);
-                    helpOverlay.setVisible(false);
+            String[] colors = new String[]{"#ff6b6b","#ff9f43","#ffd166","#06d6a0","#4cc9f0","#1e90ff","#845ec2","#ff77a8","#d65db1","#8ac926"};
+            int buttonSize = 96;
+            for (int r = 0; r < 5; r++) {
+                for (int c = 0; c < 2; c++) {
+                    int base = r * 2;
+                    int lvl = (r % 2 == 0) ? (base + c + 1) : (base + (2 - c));
+                    Button b = new Button(String.valueOf(lvl));
+                    final int lv = lvl;
+                    String color = colors[(lv - 1) % colors.length];
+                    b.setPrefSize(buttonSize, buttonSize);
+                    b.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold; -fx-background-radius: 8;");
 
-                    engine.start(renderer);
-                    scene.getRoot().requestFocus();
-                    startInputLoop();
-                });
-                levelButtons.getChildren().add(b);
+                    b.setOnMouseEntered(evt -> { b.setEffect(new DropShadow(14, Color.web(color))); b.setScaleX(1.06); b.setScaleY(1.06); });
+                    b.setOnMouseExited(evt -> { b.setEffect(null); b.setScaleX(1.0); b.setScaleY(1.0); });
+                    b.setOnMousePressed(evt -> { b.setScaleX(0.96); b.setScaleY(0.96); });
+                    b.setOnMouseReleased(evt -> { b.setScaleX(1.06); b.setScaleY(1.06); });
+
+                    b.setOnAction(ev -> {
+                        engine.setLevel(lv);
+                        scoreLabel.setText(engine.getText("label.score") + engine.getScore());
+                        linesLabel.setText(engine.getText("label.lines") + engine.getTotalClearedLines());
+                        moveLabel.setText(engine.getText("help.move"));
+                        rotateLabel.setText(engine.getText("help.rotate"));
+                        softDropLabel.setText(engine.getText("help.softdrop"));
+                        holdLabel.setText(engine.getText("help.hold"));
+                        hardDropLabel.setText(engine.getText("help.harddrop"));
+
+                        rootStack.getChildren().remove(levelOverlay);
+                        levelOverlay.setVisible(false);
+                        rootStack.getChildren().add(helpOverlay);
+                        helpOverlay.setVisible(false);
+
+                        engine.start(renderer);
+                        scene.getRoot().requestFocus();
+                        startInputLoop();
+                    });
+
+                    grid.add(b, c, r);
+                }
             }
 
-            lvlBox.getChildren().addAll(levelPrompt, levelButtons);
-            lvlOverlay.getChildren().add(lvlBox);
+            VBox centerBox = new VBox(18, levelPrompt, grid);
+            centerBox.setAlignment(Pos.CENTER);
+            centerBox.setPadding(new Insets(16));
 
-            // assign to the shared levelOverlay variable
-            levelOverlay = lvlOverlay;
+            levelOverlay.getChildren().addAll(levelGrid, centerBox);
             levelOverlay.prefWidthProperty().bind(rootStack.widthProperty());
             levelOverlay.prefHeightProperty().bind(rootStack.heightProperty());
             rootStack.getChildren().add(levelOverlay);
