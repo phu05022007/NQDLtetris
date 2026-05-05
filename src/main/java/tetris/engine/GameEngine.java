@@ -98,7 +98,7 @@ public class GameEngine {
                     case "menu.title": return "TETRIS";
                     case "menu.start": return "Nhấn ENTER để bắt đầu";
                     case "paused.title": return "Tạm dừng";
-                    case "paused.instructions": return "Nhấn R để tiếp tục, Esc để về menu";
+                    case "paused.instructions": return "Nhấn R để chơi lại, Esc để về menu";
                     case "gameover.title": return "KẾT THÚC";
                     case "gameover.instructions": return "Nhấn R để chơi lại, Esc để về menu";
                     case "label.score": return "Điểm: ";
@@ -120,7 +120,7 @@ public class GameEngine {
                     case "menu.title": return "TETRIS";
                     case "menu.start": return "Press ENTER to start";
                     case "paused.title": return "PAUSED";
-                    case "paused.instructions": return "Press R to resume, Esc to return to menu";
+                    case "paused.instructions": return "Press R to restart, Esc to return to menu";
                     case "gameover.title": return "GAME OVER";
                     case "gameover.instructions": return "Press R to restart, Esc to return to menu";
                     case "label.score": return "Score: ";

@@ -341,6 +341,8 @@ public class TetrisFxAppExample extends Application {
 
                     b.setOnAction(ev -> {
                         engine.setLevel(lv);
+                        engine.resetGame();
+                        engine.changeState(engine.getPlayingState());
                         // Update HUD
                         scoreLabel.setText(engine.getText("label.score") + engine.getScore());
                         linesLabel.setText(engine.getText("label.lines") + engine.getTotalClearedLines());
@@ -427,6 +429,8 @@ public class TetrisFxAppExample extends Application {
 
                     b.setOnAction(ev -> {
                         engine.setLevel(lv);
+                        engine.resetGame();
+                        engine.changeState(engine.getPlayingState());
                         scoreLabel.setText(engine.getText("label.score") + engine.getScore());
                         linesLabel.setText(engine.getText("label.lines") + engine.getTotalClearedLines());
                         moveLabel.setText(engine.getText("help.move"));
@@ -487,6 +491,9 @@ public class TetrisFxAppExample extends Application {
     }
 
     private void startInputLoop() {
+        if (inputTimer != null) {
+            inputTimer.stop();
+        }
         inputTimer = new AnimationTimer() {
             private long previousNow;
 
