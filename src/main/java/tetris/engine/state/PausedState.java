@@ -19,6 +19,9 @@ public class PausedState implements GameState {
     public void handleInput(GameEngine engine, GameAction action) {
         if (action == GameAction.RESUME) {
             engine.changeState(engine.getPlayingState());
+        } else if (action == GameAction.RESTART) {
+            engine.resetGame();
+            engine.changeState(engine.getPlayingState());
         } else if (action == GameAction.BACK_TO_MENU) {
             engine.changeState(engine.getMenuState());
         }

@@ -59,6 +59,7 @@ public class TetrisFxAppExample extends Application {
     private VBox helpOverlay;
     private StackPane languageOverlay;
     private StackPane levelOverlay;
+    private StackPane pauseOverlay;
 
     @Override
     public void start(Stage stage) {
@@ -196,9 +197,16 @@ public class TetrisFxAppExample extends Application {
             KeyCode code = event.getCode();
             boolean firstPress = pressedKeys.add(code);
 
-            // Ignore input until language is selected
+            // Ignore input until language or level overlay is selected
             if ((languageOverlay != null && languageOverlay.isVisible()) || (levelOverlay != null && levelOverlay.isVisible())) {
                 return;
+            }
+
+            // If pause overlay is visible, only accept resume/restart/escape keys
+            if (pauseOverlay != null && pauseOverlay.isVisible()) {
+                if (code != KeyCode.R && code != KeyCode.ENTER && code != KeyCode.ESCAPE) {
+                    return;
+                }
             }
 
             // One-shot actions should happen once when key goes down.
@@ -208,16 +216,27 @@ public class TetrisFxAppExample extends Application {
 
             switch (code) {
                 case ENTER:
-                    engine.handleInput(GameAction.START);
+                    if (pauseOverlay != null && pauseOverlay.isVisible()) {
+                        engine.handleInput(GameAction.RESUME);
+                        pauseOverlay.setVisible(false);
+                        if (rootStack.getChildren().contains(pauseOverlay)) {
+                            rootStack.getChildren().remove(pauseOverlay);
+                        }
+                    } else {
+                        engine.handleInput(GameAction.START);
+                    }
                     break;
-                    case UP:
-                        engine.handleInput(GameAction.ROTATE);
-                        break;
-                    case SPACE:
-                        engine.handleInput(GameAction.HARD_DROP);
-                        break;
+                case UP:
+                    engine.handleInput(GameAction.ROTATE);
+                    break;
+                case SPACE:
+                    engine.handleInput(GameAction.HARD_DROP);
+                    break;
                 case P:
                     engine.handleInput(GameAction.PAUSE);
+                    if (pauseOverlay == null) buildPauseOverlay();
+                    if (!rootStack.getChildren().contains(pauseOverlay)) rootStack.getChildren().add(pauseOverlay);
+                    pauseOverlay.setVisible(true);
                     break;
                 case C:
                     engine.handleInput(GameAction.HOLD);
@@ -228,21 +247,36 @@ public class TetrisFxAppExample extends Application {
                     }
                     break;
                 case R:
-                    // Resume if paused; restart if game over; otherwise ignore.
-                    if (engine.getCurrentState() == engine.getPausedState()) {
-                        engine.handleInput(GameAction.RESUME);
+                    if (pauseOverlay != null && pauseOverlay.isVisible()) {
+                        engine.handleInput(GameAction.RESTART);
+                        pauseOverlay.setVisible(false);
+                        if (rootStack.getChildren().contains(pauseOverlay)) rootStack.getChildren().remove(pauseOverlay);
+                    } else if (engine.getCurrentState() == engine.getPausedState()) {
+                        engine.handleInput(GameAction.RESTART);
                     } else if (engine.getCurrentState() == engine.getGameOverState()) {
                         engine.handleInput(GameAction.RESTART);
                     }
                     break;
                 case ESCAPE:
-                    if (engine.getCurrentState() == engine.getGameOverState()) {
+                    if (pauseOverlay != null && pauseOverlay.isVisible()) {
+                        pauseOverlay.setVisible(false);
+                        if (rootStack.getChildren().contains(pauseOverlay)) rootStack.getChildren().remove(pauseOverlay);
+                        if (levelOverlay != null) {
+                            if (!rootStack.getChildren().contains(levelOverlay)) rootStack.getChildren().add(levelOverlay);
+                            levelOverlay.setVisible(true);
+                        }
+                    } else if (engine.getCurrentState() == engine.getGameOverState()) {
                         if (levelOverlay != null) {
                             if (!rootStack.getChildren().contains(levelOverlay)) {
                                 rootStack.getChildren().add(levelOverlay);
                             }
                             levelOverlay.setVisible(true);
                         }
+                    } else if (engine.getCurrentState() == engine.getPlayingState()) {
+                        engine.handleInput(GameAction.PAUSE);
+                        if (pauseOverlay == null) buildPauseOverlay();
+                        if (!rootStack.getChildren().contains(pauseOverlay)) rootStack.getChildren().add(pauseOverlay);
+                        pauseOverlay.setVisible(true);
                     } else {
                         engine.handleInput(GameAction.BACK_TO_MENU);
                     }
@@ -561,6 +595,39 @@ public class TetrisFxAppExample extends Application {
             helpOverlay.getChildren().add(l);
         }
         helpOverlay.setVisible(false);
+    }
+
+    private void buildPauseOverlay() {
+        pauseOverlay = new StackPane();
+        pauseOverlay.setAlignment(Pos.CENTER);
+
+        VBox box = new VBox(8);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(12));
+        box.setStyle("-fx-background-color: linear-gradient(from 0% 0% to 0% 100%, rgba(0,0,0,0.9), rgba(43,11,68,0.75)); -fx-background-radius: 8; -fx-border-color: #4B0082; -fx-border-width: 1; -fx-border-radius: 8;");
+
+        Label title = new Label(engine.getText("paused.title"));
+        title.setFont(Font.font("Fredoka One", 20));
+        title.setTextFill(Color.WHITE);
+        title.setEffect(new DropShadow(6, Color.web("#4B0082", 0.85)));
+
+        String restartText = engine.getLanguage() == GameEngine.Language.VI ? "R: Chơi lại" : "R: Restart";
+        String resumeText = engine.getLanguage() == GameEngine.Language.VI ? "Enter: Tiếp tục" : "Enter: Resume";
+        String levelText = engine.getLanguage() == GameEngine.Language.VI ? "Esc: Về chọn cấp độ" : "Esc: Level selection";
+
+        Label rLabel = new Label(restartText);
+        rLabel.setTextFill(Color.WHITE);
+        rLabel.setStyle("-fx-background-color: rgba(0,0,0,0.35); -fx-padding: 6 10; -fx-background-radius: 6; -fx-border-color: #4B0082; -fx-border-width: 1; -fx-border-radius: 6;");
+        Label eLabel = new Label(resumeText);
+        eLabel.setTextFill(Color.WHITE);
+        eLabel.setStyle("-fx-background-color: rgba(0,0,0,0.35); -fx-padding: 6 10; -fx-background-radius: 6; -fx-border-color: #4B0082; -fx-border-width: 1; -fx-border-radius: 6;");
+        Label sLabel = new Label(levelText);
+        sLabel.setTextFill(Color.WHITE);
+        sLabel.setStyle("-fx-background-color: rgba(0,0,0,0.35); -fx-padding: 6 10; -fx-background-radius: 6; -fx-border-color: #4B0082; -fx-border-width: 1; -fx-border-radius: 6;");
+
+        box.getChildren().addAll(title, rLabel, eLabel, sLabel);
+        pauseOverlay.getChildren().add(box);
+        pauseOverlay.setVisible(false);
     }
 
     private void drawGrid(Canvas canvas) {
